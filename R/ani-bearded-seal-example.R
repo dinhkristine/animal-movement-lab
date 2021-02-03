@@ -204,5 +204,44 @@ p1 <- ggplot(predData, aes(x = mu.x, y = mu.y)) +
 p1
 
 
+#### Animation of preds ####
 
+# change class to be tidyverse friendly 
+
+class(predData) <- c("bibliometrixDB", "data.frame")
+
+
+# add a column date 
+
+predData %<>% 
+  mutate(date = as_date(date_time))
+
+
+# list all dates , we will do by date for now 
+
+all_dates <- predData %>% 
+  .$date %>%  
+  unique %>% 
+  na.omit %>% 
+  sort
+
+
+# try plotting one time point at a time 
+
+ggplot(predData %>% 
+         filter(date == all_dates[[1]]), 
+       aes(x = mu.x, y = mu.y)) + 
+  geom_point(aes(colour = deployid)) + 
+  labs(x = "easting (meters)", 
+       y = "northing (meters)") + 
+  theme_map()
+
+
+ggplot(predData %>% 
+         filter(date == all_dates[[2]]), 
+       aes(x = mu.x, y = mu.y)) + 
+  geom_point(aes(colour = deployid)) + 
+  labs(x = "easting (meters)", 
+       y = "northing (meters)") + 
+  theme_map()
 
