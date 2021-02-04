@@ -280,15 +280,21 @@ saveHTML({
   for (day in seq_along(all_dates)) {
     
     df <- predData %>% 
-      filter(date == all_dates[[day]])
+      filter(date == all_dates[[day]]) %>% 
+      group_by(deployid, date) %>% 
+      summarise(mu.x = mean(mu.x, na.rm = TRUE), 
+                mu.y = mean(mu.y, na.rm = TRUE), 
+                .groups = "drop")
     
-    p <- ggplot(df, aes(x = mu.x, y = mu.y)) +
-      geom_point(aes(colour = deployid)) +
-      labs(x = "easting (meters)",
+    p <- ggplot(df, aes(x = mu.x, y = mu.y, colour = deployid)) +
+      geom_point(alpha = 0.6, size = 3) +
+      labs(title = all_dates[[day]], 
+           x = "easting (meters)",
            y = "northing (meters)") +
       xlim(c(0, 1000000)) +
       ylim(c(-3200000, -1600000)) +
       theme_map() + 
+      scale_colour_brewer(palette = "Set1") +
       guides(colour = guide_legend(nrow = 1)) + 
       theme(legend.position="bottom", legend.title = element_blank())
     print(p)
@@ -298,4 +304,51 @@ saveHTML({
    title = "Daily Bearded Seals Paths", description = desc, interval = 0.2)
 
 
+# animatrion with tail 
 
+saveHTML({
+  par(mar = c(4.1, 4.1, 0.1, 0.1))
+  for (day in seq_along(all_dates)) {
+    
+    tail_len <- 3
+    
+    if(day < tail_len){
+      days_before <- day
+    } else {
+      days_before <- day - tail_len
+    }
+    
+    df <- predData %>% 
+      filter(date %in% (all_dates[days_before:day])) %>% 
+      group_by(deployid, date) %>% 
+      summarise(mu.x = mean(mu.x, na.rm = TRUE), 
+                mu.y = mean(mu.y, na.rm = TRUE), 
+                .groups = "drop")
+    
+    df_today <- df %>% 
+      filter(date == all_dates[[day]])
+    
+    p <- ggplot() +
+      # geom_line(data = df, aes(x = mu.x, y = mu.y, colour = deployid, group = deployid), 
+      #           color = "grey", alpha = .6, size = 3) +
+      geom_smooth(data = df, aes(x = mu.x, y = mu.y, group = deployid),
+                  method = "loess", formula = y ~ x, se = FALSE, alpha = .6, size = 3, color = "grey") +
+      geom_point(data = df_today, aes(x = mu.x, y = mu.y, colour = deployid), alpha = 0.8, size = 3) +
+      labs(title = all_dates[[day]], 
+           x = "easting (meters)",
+           y = "northing (meters)") +
+      xlim(c(0, 1000000)) +
+      ylim(c(-3200000, -1600000)) +
+      theme_map() + 
+      scale_colour_brewer(palette = "Set1") +
+      guides(colour = guide_legend(nrow = 1)) + 
+      theme(legend.position="bottom", legend.title = element_blank())
+    print(p)
+    ani.pause()
+  }
+}, img.name = "bearded_seal_with_tails_plot", 
+   imgdir = "bearded_seal_with_tails_dir", 
+   htmlfile = "bearded_seal_with_tails.html", 
+   title = "Daily Bearded Seals Paths with Tails", 
+   interval = 0.1)
+ 
