@@ -11,6 +11,7 @@ library(magrittr)
 library(xts)
 library(doParallel)
 library(argosfilter)
+library(animation)
 
 
 #### load data #### 
@@ -233,7 +234,9 @@ ggplot(predData %>%
        aes(x = mu.x, y = mu.y)) + 
   geom_point(aes(colour = deployid)) + 
   labs(x = "easting (meters)", 
-       y = "northing (meters)") + 
+       y = "northing (meters)") +
+  xlim(c(0, 1000000)) +
+  ylim(c(-3200000, -1600000)) + 
   theme_map()
 
 
@@ -243,5 +246,56 @@ ggplot(predData %>%
   geom_point(aes(colour = deployid)) + 
   labs(x = "easting (meters)", 
        y = "northing (meters)") + 
+  xlim(c(0, 1000000)) +
+  ylim(c(-3200000, -1600000)) + 
   theme_map()
+
+ggplot(predData %>% 
+         filter(date == all_dates[[3]]), 
+       aes(x = mu.x, y = mu.y)) + 
+  geom_point(aes(colour = deployid)) + 
+  labs(x = "easting (meters)", 
+       y = "northing (meters)") + 
+  xlim(c(0, 1000000)) +
+  ylim(c(-3200000, -1600000)) + 
+  theme_map()
+
+ggplot(predData %>% 
+         filter(date == all_dates[[4]]), 
+       aes(x = mu.x, y = mu.y)) + 
+  geom_point(aes(colour = deployid)) + 
+  labs(x = "easting (meters)", 
+       y = "northing (meters)") + 
+  xlim(c(0, 1000000)) +
+  ylim(c(-3200000, -1600000)) + 
+  theme_map()
+
+
+## now try with simple animation 
+
+desc <- c("Plot of Bearded Seal Example")
+
+saveHTML({
+  par(mar = c(4.1, 4.1, 0.1, 0.1))
+  for (day in seq_along(all_dates)) {
+    
+    df <- predData %>% 
+      filter(date == all_dates[[day]])
+    
+    p <- ggplot(df, aes(x = mu.x, y = mu.y)) +
+      geom_point(aes(colour = deployid)) +
+      labs(x = "easting (meters)",
+           y = "northing (meters)") +
+      xlim(c(0, 1000000)) +
+      ylim(c(-3200000, -1600000)) +
+      theme_map() + 
+      guides(colour = guide_legend(nrow = 1)) + 
+      theme(legend.position="bottom", legend.title = element_blank())
+    print(p)
+    ani.pause()
+  }
+}, img.name = "bearded_seal_plot", imgdir = "bearded_seal_dir", htmlfile = "bearded_seal.html", 
+   title = "Daily Bearded Seals Paths", description = desc, interval = 0.2)
+
+
 
