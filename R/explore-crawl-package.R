@@ -60,7 +60,7 @@ fit1 <- crwMLE(mov.model=~1,
 fit1
 
 predTime <- seq(lubridate::ceiling_date(min(northernFurSeal$Time), unit = "days"), 
-                lubridate::floor_date(max(northernFurSeal$Time), unit = "days"), 1)
+                lubridate::floor_date(max(northernFurSeal$Time), unit = "days"), 86400)
 
 
 # predict 
@@ -73,14 +73,29 @@ predObj <- crwPredict(object.crwFit=fit1,
 crwPredictPlot(predObj, "map")
 
 
-
-
-
 set.seed(123)
+
 simObj <- crwSimulator(fit1, 
                        predTime, 
                        method="IS", 
                        parIS=100, 
                        df=5, 
                        scale=18/20)
+
+
+w <- simObj$thetaSampList[[1]][,1]
+hist(w*100, main='Importance Sampling Weights', sub='More weights near 1 is desirable')
+
+
+my.colors <-colorRampPalette(c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a'))
+
+iter <- 20
+cols <- my.colors(iter)
+
+
+crwPredictPlot(predObj, 'map')
+for(i in 1:iter){
+  samp <- crwPostIS(simObj)
+  lines(samp$alpha.sim[,'mu.x'], samp$alpha.sim[,'mu.y'],col=cols[i]) 
+}
 

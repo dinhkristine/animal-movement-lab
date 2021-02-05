@@ -61,7 +61,7 @@ beardedSeals <- beardedSeals %>%
 split_data <- beardedSeals %>% 
   split(.$deployid)
 
-registerDoParallel(cores = 2)
+registerDoParallel(cores = 4)
 
 beardedSeals$filtered <- foreach(i = 1:length(split_data), .combine = c) %dopar% {
   argosfilter::sdafilter(
@@ -115,7 +115,7 @@ model_fits <-
     
     init = list(a = c(sp::coordinates(id_data)[1,1],0,
                       sp::coordinates(id_data)[1,2],0),
-                P = diag(c(5000 ^ 2,10 * 3600 ^ 2, 
+                P = diag(c(5000 ^ 2, 10 * 3600 ^ 2, 
                            5000 ^ 2, 10 * 3600 ^ 2)))
     
     fit <- crawl::crwMLE(
@@ -131,7 +131,7 @@ model_fits <-
       fixPar = c(1, 1, NA, NA),
       theta = c(log(10), 3),
       initialSANN = list(maxit = 2500),
-      control = list(REPORT = 10, trace = 1)
+      control = list(REPORT = 10, trace = 1), time.scale = "days"
     )
     fit
   }
@@ -154,7 +154,7 @@ predData <- foreach(i = 1:length(model_fits), .combine = rbind) %dopar% {
   predTimes <- seq(
     lubridate::ceiling_date(min(model_fits[[i]]$data$unique_posix), "hour"),
     lubridate::floor_date(max(model_fits[[i]]$data$unique_posix), "hour"),
-    "1 hour")
+    "1 day")
   tmp = crawl::crwPredict(model_fits[[i]], predTime=predTimes)
 }
 
@@ -203,6 +203,37 @@ p1 <- ggplot(predData, aes(x = mu.x, y = mu.y)) +
   theme_map()
 
 p1
+
+
+#### simulation ####
+
+i = 1
+
+predTimes <- seq(
+  lubridate::ceiling_date(min(model_fits[[i]]$data$unique_posix), "hour"),
+  lubridate::floor_date(max(model_fits[[i]]$data$unique_posix), "hour"),
+  "1 day")
+
+simObj <- crwSimulator(model_fits[[i]],
+                       predTimes,
+                       method="IS",
+                       parIS=100,
+                       df=5,
+                       scale=18/20)
+
+my.colors <-colorRampPalette(c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a'))
+
+iter <- 20
+cols <- my.colors(iter)
+
+predData %<>% na.omit()
+
+crwPredictPlot(predData)
+
+for(i in 1:iter){
+  samp <- crwPostIS(simObj)
+  lines(samp$alpha.sim[,'mu.x'], samp$alpha.sim[,'mu.y'],col=cols[i])
+}
 
 
 #### Animation of preds ####
@@ -333,7 +364,7 @@ saveHTML({
       #           color = "grey", alpha = .6, size = 3) +
       geom_smooth(data = df, aes(x = mu.x, y = mu.y, group = deployid),
                   method = "loess", formula = y ~ x, se = FALSE, alpha = .6, size = 3, color = "grey") +
-      geom_point(data = df_today, aes(x = mu.x, y = mu.y, colour = deployid), alpha = 0.8, size = 3) +
+      geom_point(data = df_today, aes(x = mu.x, y = mu.y, colour = deployid), alpha = 0.6, size = 3.2) +
       labs(title = all_dates[[day]], 
            x = "easting (meters)",
            y = "northing (meters)") +
