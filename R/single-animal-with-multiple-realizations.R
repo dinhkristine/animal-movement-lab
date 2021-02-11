@@ -8,6 +8,7 @@ library(rgdal)
 library(lubridate)
 library(animation)
 library(data.table)
+library(ggmap)
 
 
 #### Load data #### 
@@ -255,15 +256,14 @@ predObj %<>%
 
 # try plotting one time point at a time 
 
-ggplot(predObj %>% filter(Time == all_times[[1]]), 
+ggplot(predObj %>% filter(date == all_dates[[1]]), 
        aes(x = mu.x, y = mu.y)) + 
   geom_point(aes(colour = key)) +
   scale_colour_manual(values = cols) + 
   xlim(c(-200000, 2350000)) + 
   ylim(c(-6.1e+05, 6.1e+05)) + 
   theme_map() + 
-  theme(legend.position = "none") + 
-  labs(title = unique(predObj$date[predObj$Time == all_times[[1]]]))
+  theme(legend.position = "none")
 
 
 #### simple animation ####
@@ -336,4 +336,70 @@ saveHTML({
   }
 }, img.name = "multi_proj_plot_tail", imgdir = "multi_proj_dir_tail", htmlfile = "multi_proj_tail.html", 
 title = "Multiple Realization Animation with Tails", description = desc, interval = 0.1)
+
+
+#### Add map ####
+
+predObj_sp <- predObj_sub
+
+coordinates(predObj_sp) <- ~mu.x + mu.y
+
+proj4string(predObj_sp) <- CRS(paste("+proj=aea +lat_1=30 +lat_2=70",
+                                     "+lat_0=52 +lon_0=-170 +x_0=0 +y_0=0",
+                                     "+ellps=GRS80 +datum=NAD83",
+                                     "+units=m +no_defs"))
+
+predObj_sp <- spTransform(predObj_sp, CRS("+proj=longlat"))
+
+
+mapbox <- c(predObj_sp@bbox[1] - 5, 
+            predObj_sp@bbox[2] - 1, 
+            predObj_sp@bbox[3] + 5, 
+            predObj_sp@bbox[4] + 1)
+
+map_frame <- get_map(location = mapbox, source = "stamen", maptype = "toner", zoom = 9)
+
+predObj_sp_df <- as.data.frame(predObj_sp)
+
+# ggmap(map_frame) + 
+#   geom_point(data = predObj_sp_df, aes(x = mu.x, y = mu.y, colour = key), alpha = 0.6, size = 1) 
+
+
+#### add animation with mapping ####
+
+saveHTML({
+  par(mar = c(4.1, 4.1, 0.1, 0.1))
+  for (current_time in seq_along(all_dates)) {
+    
+    tail_len <- 2
+    
+    if(current_time < tail_len){
+      days_before <- current_time
+    } else {
+      days_before <- current_time - tail_len
+    }
+    
+    df <- predObj_sp_df %>% 
+      filter(date %in% (all_dates[days_before:current_time]))
+    
+    df_today <- df %>% 
+      filter(date == all_dates[[current_time]])
+    
+    p <- ggmap(map_frame) +
+      geom_smooth(data = df, aes(x = mu.x, y = mu.y, group = key, colour = key),
+                  method = "loess", formula = y ~ x, se = FALSE, alpha = .6, size = .5) +
+      geom_point(data = df_today, aes(x = mu.x, y = mu.y, colour = key), alpha = 0.6, size = 1) +
+      labs(title = all_dates[[current_time]]) +
+      theme_map() + 
+      scale_colour_manual(values = cols) + 
+      theme(legend.position="none")
+    print(p)
+    ani.pause()
+  }
+}, img.name = "multi_proj_plot_tail_map", 
+imgdir = "multi_proj_dir_tail_map", 
+htmlfile = "multi_proj_tail_map.html", 
+title = "Multiple Realization Animation with Tails", 
+description = desc, interval = 0.1)
+
 
