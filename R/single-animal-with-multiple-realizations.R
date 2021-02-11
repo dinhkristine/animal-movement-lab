@@ -6,6 +6,8 @@ library(magrittr)
 library(sp)
 library(rgdal)
 library(lubridate)
+library(animation)
+library(data.table)
 
 
 #### Load data #### 
@@ -223,13 +225,115 @@ ggplot(predObj, aes(x = mu.x, y = mu.y)) +
   geom_path(aes(colour = key), size = 0.2) +  
   theme_map() + 
   theme(legend.position = "none") + 
-  scale_colour_manual(values = cols)
+  scale_colour_manual(values = cols) + 
+  xlim(c(-200000, 2350000)) + 
+  ylim(c(-6.1e+05, 6.1e+05))
 
 
+#### Animation ####
+
+# add a column date 
+
+predObj %<>% 
+  mutate(date = as_date(Time))
 
 
+# list all times
+
+all_dates <- predObj %>% 
+  .$date %>% 
+  unique %>% 
+  na.omit %>% 
+  sort
 
 
+# sort data by date time 
+
+predObj %<>% 
+  arrange(Time, key)
 
 
+# try plotting one time point at a time 
+
+ggplot(predObj %>% filter(Time == all_times[[1]]), 
+       aes(x = mu.x, y = mu.y)) + 
+  geom_point(aes(colour = key)) +
+  scale_colour_manual(values = cols) + 
+  xlim(c(-200000, 2350000)) + 
+  ylim(c(-6.1e+05, 6.1e+05)) + 
+  theme_map() + 
+  theme(legend.position = "none") + 
+  labs(title = unique(predObj$date[predObj$Time == all_times[[1]]]))
+
+
+#### simple animation ####
+
+# filter data to 15:00:00 
+
+predObj_sub <- predObj %>% 
+  filter(Time %like% "15:00:00")
+
+
+desc <- c("Plot of Animal with Multiple Realizations")
+
+saveHTML({
+  par(mar = c(4.1, 4.1, 0.1, 0.1))
+  for (current_time in seq_along(all_dates)) {
+    
+    time_desc <- all_dates[[current_time]]
+    
+    df <- predObj_sub %>% 
+      filter(date == time_desc)
+    
+    p <- ggplot(df, aes(x = mu.x, y = mu.y)) + 
+      geom_point(aes(colour = key)) +
+      scale_colour_manual(values = cols) + 
+      xlim(c(-200000, 2350000)) + 
+      ylim(c(-6.1e+05, 6.1e+05)) + 
+      theme_map() + 
+      theme(legend.position = "none") + 
+      labs(title = time_desc)
+    
+    print(p)
+    ani.pause()
+  }
+}, img.name = "multi_proj_plot", imgdir = "multi_proj_dir", htmlfile = "multi_proj.html", 
+title = "Multiple Realization Animation", description = desc, interval = 0.2)
+
+
+#### animatrion with tail #### 
+
+saveHTML({
+  par(mar = c(4.1, 4.1, 0.1, 0.1))
+  for (current_time in seq_along(all_dates)) {
+    
+    tail_len <- 2
+    
+    if(current_time < tail_len){
+      days_before <- current_time
+    } else {
+      days_before <- current_time - tail_len
+    }
+    
+    df <- predObj_sub %>% 
+      filter(date %in% (all_dates[days_before:current_time]))
+    
+    df_today <- df %>% 
+      filter(date == all_dates[[current_time]])
+    
+    p <- ggplot() +
+      geom_smooth(data = df, aes(x = mu.x, y = mu.y, group = key, colour = key),
+                  method = "loess", formula = y ~ x, se = FALSE, alpha = .6, size = .5) +
+      geom_point(data = df_today, aes(x = mu.x, y = mu.y, colour = key), alpha = 0.6, size = 1) +
+      labs(title = all_dates[[current_time]]) +
+      xlim(c(-200000, 2350000)) + 
+      ylim(c(-6.1e+05, 6.1e+05)) + 
+      theme_map() + 
+      scale_colour_manual(values = cols) + 
+      theme(legend.position="none")
+    print(p)
+    ani.pause()
+  }
+}, img.name = "multi_proj_plot_tail", imgdir = "multi_proj_dir_tail", htmlfile = "multi_proj_tail.html", 
+title = "Multiple Realization Animation with Tails", description = desc, interval = 0.1)
 
