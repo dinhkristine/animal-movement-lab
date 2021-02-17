@@ -9,6 +9,8 @@ library(lubridate)
 library(animation)
 library(data.table)
 library(ggmap)
+library(ggblur)
+# devtools::install_github("coolbutuseless/ggblur")
 
 
 #### Load data #### 
@@ -361,14 +363,14 @@ map_frame <- get_map(location = mapbox, source = "stamen", maptype = "toner", zo
 
 predObj_sp_df <- as.data.frame(predObj_sp)
 
-# ggmap(map_frame) + 
-#   geom_point(data = predObj_sp_df, aes(x = mu.x, y = mu.y, colour = key), alpha = 0.6, size = 1) 
+# ggmap(map_frame) +
+#   geom_point(data = predObj_sp_df, aes(x = mu.x, y = mu.y, colour = key), alpha = 0.6, size = 1)
 
 
 #### add animation with mapping ####
 
 saveHTML({
-  par(mar = c(4.1, 4.1, 0.1, 0.1))
+  par(mar = c(0, 0, 0.1, 0.1))
   for (current_time in seq_along(all_dates)) {
     
     tail_len <- 2
@@ -401,5 +403,49 @@ imgdir = "multi_proj_dir_tail_map",
 htmlfile = "multi_proj_tail_map.html", 
 title = "Multiple Realization Animation with Tails", 
 description = desc, interval = 0.1)
+
+
+
+#### create blurry points ####
+
+predObj_sp_blur <- predObj %>% 
+  group_by(date) %>% 
+  summarise(move_range.x = abs(abs(max(mu.x, na.rm = T)) - abs(min(mu.x, na.rm = T))),
+            move_range.y = abs(abs(max(mu.y, na.rm = T)) - abs(min(mu.y, na.rm = T))),
+            move_range = move_range.x + move_range.y,
+            .groups = "drop") %>% 
+  left_join(predObj %>% filter(key == "mu"), by = "date")
+
+ggplot(predObj_sp_blur[1:100,], aes(x = mu.x, y = mu.y)) + 
+  geom_point_blur(aes(blur_size = move_range, size = move_range), 
+                  blur_steps = 100, col = "#4c848a", alpha = .6) +  
+  theme_map()
+
+
+# create video with blurry points 
+
+saveHTML({
+  par(mar = c(4.1, 4.1, 0.1, 0.1))
+  for (current_time in seq_along(all_dates)) {
+    
+    df <- predObj_sp_blur %>% 
+      filter(date == all_dates[[current_time]])
+    
+    p <- ggplot(df, aes(x = mu.x, y = mu.y)) + 
+      geom_point_blur(aes(blur_size = move_range, size = move_range), 
+                      blur_steps = 100, col = "#4c848a", alpha = .6) +  
+      theme_map() + 
+      theme(legend.position="none") + 
+      labs(title = all_dates[[current_time]]) + 
+      xlim(c(-200000, 2350000)) + 
+      ylim(c(-6.1e+05, 6.1e+05)) + 
+      scale_blur_size(limits = c(4000, 150000)) +
+      scale_size(limits = c(4000, 150000))
+    print(p)
+    ani.pause()
+  }
+}, img.name = "multi_proj_plot_blur", imgdir = "multi_proj_dir_blur", htmlfile = "multi_proj_blur.html", 
+title = "Multiple Realization Animation Blurry", description = desc, interval = 0.1)
+
 
 
