@@ -369,8 +369,10 @@ predObj_sp_df <- as.data.frame(predObj_sp)
 
 #### add animation with mapping ####
 
+ani.options(interval = 0.2, ani.width = 1.5*480, ani.height = 1.5*480, verbose = F)
+
 saveHTML({
-  par(mar = c(0, 0, 0.1, 0.1))
+  par(mar = c(0.1, 0.1, 0.1, 0.1))
   for (current_time in seq_along(all_dates)) {
     
     tail_len <- 2
@@ -402,7 +404,7 @@ saveHTML({
 imgdir = "multi_proj_dir_tail_map", 
 htmlfile = "multi_proj_tail_map.html", 
 title = "Multiple Realization Animation with Tails", 
-description = desc, interval = 0.1)
+description = desc)
 
 
 
@@ -491,7 +493,7 @@ predObj_df_blur$move_range <- (predObj_df_blur$move_range)^3
 # put blurry point to video 
 
 saveHTML({
-  par(mar = c(4.1, 4.1, 0.1, 0.1))
+  par(mar = c(0.1, 0.1, 0.1, 0.1))
   for (current_time in seq_along(all_dates)) {
     
     lower_limit <- min(predObj_df_blur$move_range)
