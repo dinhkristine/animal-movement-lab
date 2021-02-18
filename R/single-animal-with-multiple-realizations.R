@@ -416,7 +416,7 @@ predObj_sp_blur <- predObj %>%
             .groups = "drop") %>% 
   left_join(predObj %>% filter(key == "mu"), by = "date")
 
-ggplot(predObj_sp_blur[1:100,], aes(x = mu.x, y = mu.y)) + 
+ggplot(predObj_sp_blur[1:20,], aes(x = mu.x, y = mu.y)) + 
   geom_point_blur(aes(blur_size = move_range, size = move_range), 
                   blur_steps = 100, col = "#4c848a", alpha = .6) +  
   theme_map()
@@ -446,6 +446,78 @@ saveHTML({
   }
 }, img.name = "multi_proj_plot_blur", imgdir = "multi_proj_dir_blur", htmlfile = "multi_proj_blur.html", 
 title = "Multiple Realization Animation Blurry", description = desc, interval = 0.1)
+
+
+#### Blurry points with google map ####
+
+# transform predObj to sp object to change coordinate system 
+
+predObj_sp <- predObj
+
+coordinates(predObj_sp) <- ~mu.x + mu.y
+
+proj4string(predObj_sp) <- CRS(paste("+proj=aea +lat_1=30 +lat_2=70",
+                                     "+lat_0=52 +lon_0=-170 +x_0=0 +y_0=0",
+                                     "+ellps=GRS80 +datum=NAD83",
+                                     "+units=m +no_defs"))
+
+predObj_sp <- spTransform(predObj_sp, CRS("+proj=longlat"))
+
+
+# tranform predObj_sp to dataframe 
+
+predObj_df <- as.data.frame(predObj_sp)
+
+
+# create a ggmap with blurry point for a few rows 
+
+predObj_df_blur <- predObj_df %>% 
+  group_by(date) %>% 
+  summarise(move_range.x = abs(abs(max(mu.x, na.rm = T)) - abs(min(mu.x, na.rm = T))),
+            move_range.y = abs(abs(max(mu.y, na.rm = T)) - abs(min(mu.y, na.rm = T))),
+            move_range = move_range.x + move_range.y,
+            .groups = "drop") %>% 
+  left_join(predObj_df %>% filter(key == "mu"), by = "date")
+
+ggmap(map_frame) +
+  geom_point_blur(data = predObj_df_blur[1:20,], 
+                  aes(x = mu.x, y = mu.y, blur_size = move_range, size = move_range), 
+                  blur_steps = 100, col = "#4c848a", alpha = .6) + 
+  theme(legend.position = "none")
+
+
+predObj_df_blur$move_range <- (predObj_df_blur$move_range)^3
+
+# put blurry point to video 
+
+saveHTML({
+  par(mar = c(4.1, 4.1, 0.1, 0.1))
+  for (current_time in seq_along(all_dates)) {
+    
+    lower_limit <- min(predObj_df_blur$move_range)
+    higher_limit <- max(predObj_df_blur$move_range)
+    
+    df <- predObj_df_blur %>% 
+      filter(date == all_dates[[current_time]])
+    
+    p <- ggmap(map_frame) +
+      geom_point_blur(data = df, 
+                      aes(x = mu.x, y = mu.y, blur_size = move_range, size = move_range), 
+                      blur_steps = 100, col = "#4c848a", alpha = .6) + 
+      theme(legend.position = "none") + 
+      labs(title = all_dates[[current_time]]) +
+      scale_blur_size(limits = c(lower_limit, higher_limit)) + 
+      scale_size(limits = c(lower_limit, higher_limit))
+    print(p)
+    ani.pause()
+  }
+}, img.name = "multi_proj_plot_blur_ggmap", 
+imgdir = "multi_proj_dir_blur_ggmap", 
+htmlfile = "multi_proj_blur_ggmap.html", 
+title = "Multiple Realization Animation Blurry with Google Map", 
+description = desc, interval = 0.1)
+ 
+
 
 
 
