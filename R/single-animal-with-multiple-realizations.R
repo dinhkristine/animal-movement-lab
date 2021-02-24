@@ -104,7 +104,8 @@ predTime <- seq(ceiling_date(min(northernFurSeal$Time), unit = "hours"),
 predObj <- crwPredict(object.crwFit = fit1, 
                       predTime, 
                       speedEst = TRUE, 
-                      flat = TRUE)
+                      flat = TRUE, 
+                      return.type = "flat")
 
 
 # theme for the plot 
@@ -206,15 +207,15 @@ for(i in 1:iter){
 # gather data 
 
 predObj.x <- predObj %>%
-  select(Time, contains(".x"), -nu.x) %>% 
-  gather(key, mu.x, -Time)
+  select(Time, contains(".x"), -nu.x, -se.nu.x) %>% 
+  gather(key, mu.x, -Time, -se.mu.x)
 
 predObj.x$key %<>%
   str_remove(".x")
 
 predObj.y <- predObj %>%
-  select(Time, contains(".y"), -nu.x) %>% 
-  gather(key, mu.y, -Time)
+  select(Time, contains(".y"), -nu.y, -se.nu.y) %>% 
+  gather(key, mu.y, -Time, -se.mu.y)
 
 predObj.y$key %<>%
   str_remove(".y")
@@ -354,10 +355,10 @@ proj4string(predObj_sp) <- CRS(paste("+proj=aea +lat_1=30 +lat_2=70",
 predObj_sp <- spTransform(predObj_sp, CRS("+proj=longlat"))
 
 
-mapbox <- c(predObj_sp@bbox[1] - 5, 
-            predObj_sp@bbox[2] - 1, 
-            predObj_sp@bbox[3] + 5, 
-            predObj_sp@bbox[4] + 1)
+# mapbox <- c(predObj_sp@bbox[1] - 5, 
+#             predObj_sp@bbox[2] - 1, 
+#             predObj_sp@bbox[3] + 5, 
+#             predObj_sp@bbox[4] + 1)
 
 # map_frame <- get_map(location = mapbox, source = "stamen", maptype = "toner", zoom = 9)
 
@@ -481,22 +482,29 @@ predObj_df <- as.data.frame(predObj_sp)
 
 # create a ggmap with blurry point for a few rows 
 
-predObj_df_blur <- predObj_df %>% 
-  group_by(date) %>% 
-  summarise(move_range.x = abs(abs(max(mu.x, na.rm = T)) - abs(min(mu.x, na.rm = T))),
-            move_range.y = abs(abs(max(mu.y, na.rm = T)) - abs(min(mu.y, na.rm = T))),
-            move_range = move_range.x + move_range.y,
-            .groups = "drop") %>% 
-  left_join(predObj_df %>% filter(key == "mu"), by = "date")
+# predObj_df_blur <- predObj_df %>% 
+#   group_by(date) %>% 
+#   summarise(move_range.x = abs(abs(max(mu.x, na.rm = T)) - abs(min(mu.x, na.rm = T))),
+#             move_range.y = abs(abs(max(mu.y, na.rm = T)) - abs(min(mu.y, na.rm = T))),
+#             move_range = move_range.x + move_range.y,
+#             .groups = "drop") %>% 
+#   left_join(predObj_df %>% filter(key == "mu"), by = "date")
 
-ggmap(map_frame) +
-  geom_point_blur(data = predObj_df_blur[1:20,], 
-                  aes(x = mu.x, y = mu.y, blur_size = move_range, size = move_range), 
-                  blur_steps = 100, col = "#4c848a", alpha = .6) + 
+# ggmap(map_frame) +
+#   geom_point_blur(data = predObj_df_blur[1:20,], 
+#                   aes(x = mu.x, y = mu.y, blur_size = move_range, size = move_range), 
+#                   blur_steps = 100, col = "#4c848a", alpha = .6) + 
+#   theme(legend.position = "none")
+
+predObj_df_blur <- predObj_df
+
+ggplot(predObj_df_blur[1:20,] %>% filter(key == "mu"),
+       aes(x = mu.x, y = mu.y)) +
+  geom_point_blur(aes(blur_size = se.mu.x, size = se.mu.x), blur_steps = 100, col = "#4c848a", alpha = .6) + 
   theme(legend.position = "none")
 
 
-predObj_df_blur$move_range <- (predObj_df_blur$move_range)^3
+# predObj_df_blur$move_range <- (predObj_df_blur$se.mu.x)^3
 
 # put blurry point to video 
 
@@ -504,15 +512,15 @@ saveHTML({
   par(mar = c(0.1, 0.1, 0.1, 0.1))
   for (current_time in seq_along(all_dates)) {
     
-    lower_limit <- min(predObj_df_blur$move_range)
-    higher_limit <- max(predObj_df_blur$move_range)
+    lower_limit <- min(predObj_df_blur$se.mu.x)
+    higher_limit <- max(predObj_df_blur$se.mu.x)
     
     df <- predObj_df_blur %>% 
-      filter(date == all_dates[[current_time]])
+      filter(date == all_dates[[current_time]] & key == "mu")
     
     p <- ggmap(map_frame) +
       geom_point_blur(data = df, 
-                      aes(x = mu.x, y = mu.y, blur_size = move_range, size = move_range), 
+                      aes(x = mu.x, y = mu.y, blur_size = se.mu.x, size = se.mu.x), 
                       blur_steps = 100, col = "#4c848a", alpha = .6) + 
       theme(legend.position = "none") + 
       labs(title = all_dates[[current_time]]) +
