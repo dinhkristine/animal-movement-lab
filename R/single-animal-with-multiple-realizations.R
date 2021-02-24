@@ -359,12 +359,20 @@ mapbox <- c(predObj_sp@bbox[1] - 5,
             predObj_sp@bbox[3] + 5, 
             predObj_sp@bbox[4] + 1)
 
-map_frame <- get_map(location = mapbox, source = "stamen", maptype = "toner", zoom = 9)
+# map_frame <- get_map(location = mapbox, source = "stamen", maptype = "toner", zoom = 9)
 
 predObj_sp_df <- as.data.frame(predObj_sp)
 
 # ggmap(map_frame) +
 #   geom_point(data = predObj_sp_df, aes(x = mu.x, y = mu.y, colour = key), alpha = 0.6, size = 1)
+
+#### save map frame #### 
+save(map_frame, file = "maps/single_animal_with_multiple_realizations.rda")
+
+
+#### load saved map ####
+
+load(file = "maps/single_animal_with_multiple_realizations.rda")
 
 
 #### add animation with mapping ####
