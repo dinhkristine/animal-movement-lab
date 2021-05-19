@@ -46,19 +46,19 @@ northernFurSeal <- spTransform(northernFurSeal,
 
 #### set initial parameters and priors for the model ####
 
-initial <- list(a = c(coordinates(northernFurSeal)[1,1],0,
-                      coordinates(northernFurSeal)[1,2],0),
-                P = diag(c(10000^2,54000^2,10000^2,5400^2)))
+# initial <- list(a = c(coordinates(northernFurSeal)[1,1],0,
+#                       coordinates(northernFurSeal)[1,2],0),
+#                 P = diag(c(10000^2,54000^2,10000^2,5400^2)))
 
 
 # fix values in the model to 0 or 1 
 
 fixPar <- c(log(250), log(500), log(1500), rep(NA,3), NA)
 
-displayPar(mov.model=~1,
-           err.model=list(x=~Argos_loc_class-1),
-           data=northernFurSeal,
-           fixPar=fixPar)
+# displayPar(mov.model=~1,
+#            err.model=list(x=~Argos_loc_class-1),
+#            data=northernFurSeal,
+#            fixPar=fixPar)
 
 # parameters for upper and lower limits 
 
@@ -74,16 +74,18 @@ ln.prior <- function(theta){-abs(theta[4]-3)/0.5}
 
 set.seed(123)
 
-fit1 <- crwMLE(mov.model = ~ 1, 
-               err.model = list(x = ~ Argos_loc_class - 1),
-               data = northernFurSeal, 
-               Time.name = "Time",
-               initial.state = initial,
-               fixPar = fixPar, 
-               constr = constr, 
-               prior = ln.prior,
-               control = list(maxit = 30, trace = 0,REPORT = 1),
-               initialSANN = list(maxit = 200, trace = 0, REPORT = 1))
+fit1 <- suppressWarnings(
+  crwMLE(
+    mov.model = ~ 1, 
+    err.model = list(x = ~ Argos_loc_class - 1),
+    data = northernFurSeal, 
+    Time.name = "Time",
+    # initial.state = initial,
+    fixPar = fixPar,
+    constr = constr,
+    prior = ln.prior
+    )
+  )
 
 
 # view model results 
